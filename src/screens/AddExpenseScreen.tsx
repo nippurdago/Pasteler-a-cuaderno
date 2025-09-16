@@ -1,0 +1,104 @@
+import React, { useState } from 'react';
+import type { View, ExpenseCategory } from '../types';
+import { useLedger } from '../context/LedgerContext';
+import { EXPENSE_CATEGORIES } from '../constants';
+import { ArrowLeftIcon } from '../components/Icons';
+
+const AddExpenseScreen: React.FC<{ navigate: (view: View) => void }> = ({ navigate }) => {
+  const { addExpense } = useLedger();
+  const [selectedCategory, setSelectedCategory] = useState<ExpenseCategory | null>(null);
+  const [amount, setAmount] = useState('');
+  const [description, setDescription] = useState('');
+  
+  const [isSaving, setIsSaving] = useState(false);
+  
+  const handleSaveExpense = async () => {
+    const numericAmount = parseFloat(amount);
+    if (!selectedCategory || isNaN(numericAmount) || numericAmount <= 0 || isSaving) {
+      return;
+    }
+    setIsSaving(true);
+    await addExpense(numericAmount, selectedCategory, description);
+    setIsSaving(false);
+    navigate('dashboard');
+  };
+
+  return (
+    <div className="flex flex-col min-h-screen">
+      <header className="sticky top-0 bg-background/80 backdrop-blur-sm z-10 p-4 flex items-center space-x-4 border-b border-secondary/20">
+        <button onClick={() => navigate('dashboard')} className="p-2 -ml-2">
+          <ArrowLeftIcon className="w-6 h-6" />
+        </button>
+        <h1 className="font-heading text-xl font-medium">Anotar Gasto</h1>
+      </header>
+      
+      <div className="p-4 space-y-6 flex-grow">
+        <div>
+          <label className="block font-heading text-lg mb-2">Categoría</label>
+          <div className="grid grid-cols-2 gap-3">
+            {EXPENSE_CATEGORIES.map(category => (
+              <button
+                key={category}
+                onClick={() => setSelectedCategory(category)}
+                className={`p-3 rounded-lg text-center font-semibold transition-all duration-200 ${
+                  selectedCategory === category
+                    ? 'bg-alert text-white shadow-md'
+                    : 'bg-alert/20 hover:bg-alert/40'
+                }`}
+                style={{minHeight: '48px'}}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {selectedCategory && (
+            <div className="space-y-4 animate-fade-in">
+                <h2 className="font-heading text-lg">Detalles para <span className="text-secondary font-bold">{selectedCategory}</span></h2>
+                <div>
+                    <label htmlFor="amount" className="block text-sm font-medium text-text-main/80 mb-1">Monto (S/)</label>
+                    <div className="relative">
+                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center font-mono text-text-main/50">S/</span>
+                        <input
+                            type="number"
+                            id="amount"
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                            placeholder="0.00"
+                            className="w-full pl-10 pr-4 py-3 font-mono text-xl rounded-lg border border-secondary/30 focus:ring-secondary focus:border-secondary bg-white text-text-main placeholder:text-text-main/50"
+                            inputMode="decimal"
+                        />
+                    </div>
+                </div>
+
+                <div>
+                    <label htmlFor="description" className="block text-sm font-medium text-text-main/80 mb-1">Descripción (opcional)</label>
+                    <input
+                        type="text"
+                        id="description"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="Ej: Harina y azúcar"
+                        className="w-full px-4 py-3 rounded-lg border border-secondary/30 focus:ring-secondary focus:border-secondary bg-white text-text-main placeholder:text-text-main/50"
+                    />
+                </div>
+            </div>
+        )}
+      </div>
+
+        <div className="p-4 mt-auto">
+            <button
+                onClick={handleSaveExpense}
+                disabled={!selectedCategory || !amount || parseFloat(amount) <= 0}
+                className="w-full bg-primary text-white font-bold py-4 rounded-lg shadow-md disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                style={{ minHeight: '48px' }}
+            >
+                Guardar Gasto
+            </button>
+        </div>
+    </div>
+  );
+};
+
+export default AddExpenseScreen;
