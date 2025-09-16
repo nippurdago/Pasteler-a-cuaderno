@@ -73,7 +73,7 @@ const ProductForm: React.FC<{
 };
 
 const ProductsScreen: React.FC<{ navigate: (view: View) => void }> = ({ navigate }) => {
-  const { products, updateProducts } = useLedger();
+  const { products, updateProducts, addProduct } = useLedger();
   const [isFormVisible, setIsFormVisible] = useState(false);
 
   const handleToggleVisibility = (id: string, isVisible: boolean) => {
@@ -88,14 +88,14 @@ const ProductsScreen: React.FC<{ navigate: (view: View) => void }> = ({ navigate
     }
   };
 
-  const handleAddProduct = (name: string, price: number) => {
+  const handleAddProduct = async (name: string, price: number) => {
     const newProduct: Omit<Product, 'id'> = {
         name,
         price,
         isVisible: true,
         sortOrder: (products.length > 0 ? Math.max(...products.map(p => p.sortOrder)) : 0) + 1
     };
-    updateProducts([...products, newProduct as Product]);
+    await addProduct(newProduct);
     setIsFormVisible(false);
   };
 

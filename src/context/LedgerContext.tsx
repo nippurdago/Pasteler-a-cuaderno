@@ -10,6 +10,7 @@ interface LedgerContextType {
   addExpense: (amount: number, category: ExpenseCategory, description?: string) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   updateProducts: (products: Product[]) => Promise<void>;
+  addProduct: (product: Omit<Product, 'id'>) => Promise<void>;
   showToast: (message: string) => void;
   loading: boolean;
 }
@@ -129,6 +130,19 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   };
 
+  const addProduct = async (product: Omit<Product, 'id'>) => {
+    if (!user) return;
+    const productWithUserId = { ...product, user_id: user.id };
+    const { data, error } = await supabase.from('products').insert(productWithUserId).select();
+    if (error) {
+      console.error('Error adding product:', error.message);
+      showToast('Error al agregar el producto');
+    } else if (data) {
+      setProducts(prev => [...prev, data[0]]);
+      showToast('Producto agregado');
+    }
+  };
+
   const updateProducts = async (updatedProducts: Product[]) => {
     if (!user) return;
   
@@ -152,6 +166,7 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     addExpense,
     deleteTransaction,
     updateProducts,
+    addProduct,
     showToast,
     loading,
   };
