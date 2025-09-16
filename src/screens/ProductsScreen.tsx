@@ -85,20 +85,17 @@ const ProductsScreen: React.FC<{ navigate: (view: View) => void }> = ({ navigate
     if(window.confirm('¿Seguro que quieres eliminar este producto?')) {
         const updated = products.filter(p => p.id !== id);
         updateProducts(updated);
-        showToast('Producto eliminado');
     }
   };
 
   const handleAddProduct = (name: string, price: number) => {
-    const newProduct: Product = {
-        id: `prod-${Date.now()}`,
+    const newProduct: Omit<Product, 'id'> = {
         name,
         price,
         isVisible: true,
         sortOrder: (products.length > 0 ? Math.max(...products.map(p => p.sortOrder)) : 0) + 1
     };
-    updateProducts([...products, newProduct]);
-    showToast('Producto agregado');
+    updateProducts([...products, newProduct as Product]);
     setIsFormVisible(false);
   };
 

@@ -131,10 +131,18 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const updateProducts = async (updatedProducts: Product[]) => {
     if (!user) return;
-    // Esta función es más compleja. Por ahora, solo actualiza el estado local.
-    // Para una implementación completa, necesitaríamos hacer "upsert" en Supabase.
-    setProducts(updatedProducts);
-    showToast('Productos actualizados (localmente)');
+  
+    const productsToUpsert = updatedProducts.map(p => ({ ...p, user_id: user.id }));
+  
+    const { data, error } = await supabase.from('products').upsert(productsToUpsert).select();
+  
+    if (error) {
+      console.error('Error updating products:', error.message);
+      showToast('Error al actualizar los productos');
+    } else if (data) {
+      setProducts(data);
+      showToast('Productos actualizados');
+    }
   };
   
   const value = {
