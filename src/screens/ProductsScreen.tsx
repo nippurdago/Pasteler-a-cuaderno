@@ -73,7 +73,7 @@ const ProductForm: React.FC<{
 };
 
 const ProductsScreen: React.FC<{ navigate: (view: View) => void }> = ({ navigate }) => {
-  const { products, updateProducts, showToast } = useLedger();
+  const { products, updateProducts } = useLedger();
   const [isFormVisible, setIsFormVisible] = useState(false);
 
   const handleToggleVisibility = (id: string, isVisible: boolean) => {
