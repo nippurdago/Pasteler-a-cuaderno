@@ -1,0 +1,5 @@
+{
+  "name": "Pastelería Cuaderno Digital",
+  "description": "Una PWA minimalista diseñada para el registro diario de ventas y gastos de una pequeña pastelería, enfocada en la velocidad y facilidad de uso para reemplazar el cuaderno de papel.",
+  "requestFramePermissions": []
+}
