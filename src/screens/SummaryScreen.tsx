@@ -32,30 +32,42 @@ const SummaryScreen: React.FC = () => {
   }, [transactions, startDate, endDate]);
 
   const chartData = useMemo<ChartDataPoint[]>(() => {
-    const dailyData: { [date: string]: { income: number; expense: number } } = {};
+    // Use a Map to preserve insertion order.
+    const dailyData = new Map<string, { income: number; expense: number }>();
 
-    filteredTransactions.forEach(t => {
-      const date = new Date(t.date).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
-      if (!dailyData[date]) {
-        dailyData[date] = { income: 0, expense: 0 };
+    // Ensure transactions are sorted by date
+    const sortedTransactions = [...filteredTransactions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    sortedTransactions.forEach(t => {
+      const dateKey = new Date(t.date).toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
+      
+      if (!dailyData.has(dateKey)) {
+        dailyData.set(dateKey, { income: 0, expense: 0 });
       }
+      
+      const dayData = dailyData.get(dateKey)!;
       if (t.type === 'sale') {
-        dailyData[date].income += t.amount;
+        dayData.income += t.amount;
       } else {
-        dailyData[date].expense += t.amount;
+        dayData.expense += t.amount;
       }
     });
     
     let cumulativeBalance = 0;
-    return Object.entries(dailyData).map(([date, data]) => {
+    const finalChartData: ChartDataPoint[] = [];
+    
+    // Iterate over the map which preserves insertion order
+    dailyData.forEach((data, date) => {
         cumulativeBalance += data.income - data.expense;
-        return {
+        finalChartData.push({
             date,
             Ingresos: data.income,
             Gastos: data.expense,
             Balance: cumulativeBalance,
-        }
+        });
     });
+
+    return finalChartData;
   }, [filteredTransactions]);
 
   const summary = useMemo(() => {
