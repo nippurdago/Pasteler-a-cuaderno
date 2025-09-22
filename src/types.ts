@@ -1,4 +1,9 @@
-export type View = 'dashboard' | 'addSale' | 'addExpense' | 'products' | 'summary';
+export type View = 'dashboard' | 'addSale' | 'addExpense' | 'products' | 'summary' | 'expenseDetail' | 'productCategories' | 'incomeDetail';
+
+export interface ProductCategory {
+  id: string;
+  name: string;
+}
 
 export interface Product {
   id: string;
@@ -6,6 +11,7 @@ export interface Product {
   price: number;
   isVisible: boolean;
   sortOrder: number;
+  category_id?: string;
 }
 
 export type TransactionType = 'sale' | 'expense';

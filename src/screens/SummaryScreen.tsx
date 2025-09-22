@@ -2,26 +2,19 @@ import React, { useMemo, useState } from 'react';
 import { useLedger } from '../context/LedgerContext';
 import { ChartBarIcon } from '../components/Icons';
 import BalanceChart from '../components/BalanceChart';
-import type { ChartDataPoint } from '../types';
+import type { ChartDataPoint, View } from '../types';
 import StatCard from '../components/StatCard'; // Import StatCard
 
-const SummaryScreen: React.FC = () => {
-  const { transactions } = useLedger();
-
-  // State for date range
-  const [startDate, setStartDate] = useState<string>(() => {
-    const today = new Date();
-    return new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-  });
-  const [endDate, setEndDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+const SummaryScreen: React.FC<{ navigate: (view: View) => void }> = ({ navigate }) => {
+  const { transactions, period, setPeriod } = useLedger();
 
   const filteredTransactions = useMemo(() => {
     // Fix for date parsing: treat date strings as local time, not UTC
-    const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+    const [startYear, startMonth, startDay] = period.startDate.split('-').map(Number);
     const start = new Date(startYear, startMonth - 1, startDay);
     start.setHours(0, 0, 0, 0);
 
-    const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+    const [endYear, endMonth, endDay] = period.endDate.split('-').map(Number);
     const end = new Date(endYear, endMonth - 1, endDay);
     end.setHours(23, 59, 59, 999); // Set to the end of the selected day
 
@@ -29,7 +22,7 @@ const SummaryScreen: React.FC = () => {
       const transactionDate = new Date(t.date);
       return transactionDate >= start && transactionDate <= end;
     });
-  }, [transactions, startDate, endDate]);
+  }, [transactions, period]);
 
   const chartData = useMemo<ChartDataPoint[]>(() => {
     // Use a Map to preserve insertion order.
@@ -118,8 +111,8 @@ const SummaryScreen: React.FC = () => {
               <input 
                 type="date" 
                 id="startDate"
-                value={startDate}
-                onChange={e => setStartDate(e.target.value)}
+                value={period.startDate}
+                onChange={e => setPeriod(p => ({ ...p, startDate: e.target.value }))}
                 className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-income focus:border-income"
               />
             </div>
@@ -128,8 +121,8 @@ const SummaryScreen: React.FC = () => {
               <input 
                 type="date" 
                 id="endDate"
-                value={endDate}
-                onChange={e => setEndDate(e.target.value)}
+                value={period.endDate}
+                onChange={e => setPeriod(p => ({ ...p, endDate: e.target.value }))}
                 className="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-income focus:border-income"
               />
             </div>
@@ -141,8 +134,12 @@ const SummaryScreen: React.FC = () => {
 
         {/* Balance Summary */}
         <div className="space-y-4">
-            <StatCard title="Ingresos del Período" amount={summary.sales} colorClass="bg-income/20" />
-            <StatCard title="Gastos del Período" amount={summary.expenses} colorClass="bg-expense/20" />
+            <div onClick={() => navigate('incomeDetail')} className="cursor-pointer active:opacity-75 transition-opacity">
+              <StatCard title="Ingresos del Período" amount={summary.sales} colorClass="bg-income/20" />
+            </div>
+            <div onClick={() => navigate('expenseDetail')} className="cursor-pointer active:opacity-75 transition-opacity">
+              <StatCard title="Gastos del Período" amount={summary.expenses} colorClass="bg-expense/20" />
+            </div>
             <StatCard title="Balance del Período" amount={balance} colorClass={balanceColor} />
         </div>
         

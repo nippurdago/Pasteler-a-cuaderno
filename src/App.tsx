@@ -9,6 +9,9 @@ import SummaryScreen from './screens/SummaryScreen';
 import LoginScreen from './screens/LoginScreen';
 import BottomNav from './components/BottomNav';
 import type { View } from './types';
+import ExpenseDetailScreen from './screens/ExpenseDetailScreen';
+import ProductCategoryScreen from './screens/ProductCategoryScreen';
+import IncomeDetailScreen from './screens/IncomeDetailScreen';
 
 const App: React.FC = () => (
   <AuthProvider>
@@ -53,7 +56,13 @@ const AuthenticatedApp: React.FC = () => {
       case 'products':
         return <ProductsScreen navigate={navigate} />;
       case 'summary':
-        return <SummaryScreen />;
+        return <SummaryScreen navigate={navigate} />;
+      case 'expenseDetail':
+        return <ExpenseDetailScreen navigate={navigate} />;
+      case 'productCategories':
+        return <ProductCategoryScreen navigate={navigate} />;
+      case 'incomeDetail':
+        return <IncomeDetailScreen navigate={navigate} />;
       case 'dashboard':
       default:
         return (

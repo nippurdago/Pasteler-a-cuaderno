@@ -1,18 +1,25 @@
 import React, { createContext, useState, useContext, ReactNode, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from './AuthContext';
-import type { Product, Transaction, SaleItem, ExpenseCategory } from '../types';
+import type { Product, Transaction, SaleItem, ExpenseCategory, ProductCategory } from '../types';
 
 interface LedgerContextType {
   products: Product[];
+  productCategories: ProductCategory[];
   transactions: Transaction[];
   addSale: (items: SaleItem[], total: number) => Promise<void>;
   addExpense: (amount: number, category: ExpenseCategory, description?: string) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
   updateProducts: (products: Product[]) => Promise<void>;
-  addProduct: (product: Omit<Product, 'id'>) => Promise<void>;
+  addProduct: (product: Omit<Product, 'id' | 'category_id'> & { category_id?: string }) => Promise<void>;
+  deleteProduct: (id: string) => Promise<void>;
+  addProductCategory: (name: string) => Promise<void>;
+  updateProductCategory: (id: string, name: string) => Promise<void>;
+  deleteProductCategory: (id: string) => Promise<void>;
   showToast: (message: string) => void;
   loading: boolean;
+  period: { startDate: string; endDate: string };
+  setPeriod: React.Dispatch<React.SetStateAction<{ startDate: string; endDate: string }>>;
 }
 
 const LedgerContext = createContext<LedgerContextType | undefined>(undefined);
@@ -41,9 +48,16 @@ const Toast: React.FC<{ message: string; onDismiss: () => void }> = ({ message, 
 export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
+  const [productCategories, setProductCategories] = useState<ProductCategory[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [period, setPeriod] = useState(() => {
+    const today = new Date();
+    const startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+    const endDate = today.toISOString().split('T')[0];
+    return { startDate, endDate };
+  });
 
   const showToast = useCallback((message: string) => {
     setToastMessage(message);
@@ -53,22 +67,19 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     if (!user) return;
     setLoading(true);
     try {
-      const { data: productsData, error: productsError } = await supabase
-        .from('products')
-        .select('*')
-        .eq('user_id', user.id);
-      
-      if (productsError) throw productsError;
-      setProducts(productsData || []);
+      const [productsRes, transactionsRes, categoriesRes] = await Promise.all([
+        supabase.from('products').select('*').eq('user_id', user.id),
+        supabase.from('transactions').select('*').eq('user_id', user.id).order('date', { ascending: false }),
+        supabase.from('product_categories').select('*').eq('user_id', user.id),
+      ]);
 
-      const { data: transactionsData, error: transactionsError } = await supabase
-        .from('transactions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('date', { ascending: false });
+      if (productsRes.error) throw productsRes.error;
+      if (transactionsRes.error) throw transactionsRes.error;
+      if (categoriesRes.error) throw categoriesRes.error;
 
-      if (transactionsError) throw transactionsError;
-      setTransactions(transactionsData || []);
+      setProducts(productsRes.data || []);
+      setTransactions(transactionsRes.data || []);
+      setProductCategories(categoriesRes.data || []);
 
     } catch (error: any) {
       console.error('Error fetching data:', error.message);
@@ -89,6 +100,7 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       amount: total,
       items: items.filter(item => item.quantity > 0),
       user_id: user.id,
+      date: new Date().toISOString(),
     };
     const { data, error } = await supabase.from('transactions').insert(newSale).select();
     if (error) {
@@ -108,6 +120,7 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       category,
       description,
       user_id: user.id,
+      date: new Date().toISOString(),
     };
     const { data, error } = await supabase.from('transactions').insert(newExpense).select();
     if (error) {
@@ -130,7 +143,7 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   };
 
-  const addProduct = async (product: Omit<Product, 'id'>) => {
+  const addProduct = async (product: Omit<Product, 'id' | 'category_id'> & { category_id?: string }) => {
     if (!user) return;
     const productWithUserId = { ...product, user_id: user.id };
     const { data, error } = await supabase.from('products').insert(productWithUserId).select();
@@ -143,13 +156,26 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   };
 
+  const deleteProduct = async (id: string) => {
+    if (!user) return;
+    const { error } = await supabase.from('products').delete().match({ id });
+    if (error) {
+      console.error('Error deleting product:', error);
+      if (error.code === '23503') { // Foreign key violation
+        showToast('No se puede eliminar un producto con ventas registradas.');
+      } else {
+        showToast('Error al eliminar el producto');
+      }
+    } else {
+      setProducts(prev => prev.filter(p => p.id !== id));
+      showToast('Producto eliminado');
+    }
+  };
+
   const updateProducts = async (updatedProducts: Product[]) => {
     if (!user) return;
-  
     const productsToUpsert = updatedProducts.map(p => ({ ...p, user_id: user.id }));
-  
     const { data, error } = await supabase.from('products').upsert(productsToUpsert).select();
-  
     if (error) {
       console.error('Error updating products:', error.message);
       showToast('Error al actualizar los productos');
@@ -158,17 +184,59 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       showToast('Productos actualizados');
     }
   };
+
+  const addProductCategory = async (name: string) => {
+    if (!user) return;
+    const { data, error } = await supabase.from('product_categories').insert({ name, user_id: user.id }).select();
+    if (error) {
+      showToast('Error al crear categoría');
+    } else if (data) {
+      setProductCategories(prev => [...prev, data[0]]);
+      showToast('Categoría creada');
+    }
+  };
+
+  const updateProductCategory = async (id: string, name: string) => {
+    if (!user) return;
+    const { data, error } = await supabase.from('product_categories').update({ name }).match({ id }).select();
+    if (error) {
+      showToast('Error al actualizar categoría');
+    } else if (data) {
+      setProductCategories(prev => prev.map(c => c.id === id ? data[0] : c));
+      showToast('Categoría actualizada');
+    }
+  };
+
+  const deleteProductCategory = async (id: string) => {
+    if (!user) return;
+    const { error } = await supabase.from('product_categories').delete().match({ id });
+    if (error) {
+      showToast('Error al eliminar categoría');
+    } else {
+      setProductCategories(prev => prev.filter(c => c.id !== id));
+      // Set category_id to null for affected products
+      setProducts(prev => prev.map(p => p.category_id === id ? { ...p, category_id: undefined } : p));
+      showToast('Categoría eliminada');
+    }
+  };
   
   const value = {
     products,
+    productCategories,
     transactions,
     addSale,
     addExpense,
     deleteTransaction,
     updateProducts,
     addProduct,
+    deleteProduct,
+    addProductCategory,
+    updateProductCategory,
+    deleteProductCategory,
     showToast,
     loading,
+    period,
+    setPeriod,
   };
 
   return (

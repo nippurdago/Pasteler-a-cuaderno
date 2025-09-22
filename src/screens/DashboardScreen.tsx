@@ -76,8 +76,18 @@ interface HistoryPanelProps {
 }
 const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
     const { transactions, deleteTransaction } = useLedger();
-    const today = new Date().toISOString().split('T')[0];
-    const todaysTransactions = transactions.filter(t => t.date.startsWith(today));
+    
+    const todaysTransactions = useMemo(() => {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayEnd = new Date();
+        todayEnd.setHours(23, 59, 59, 999);
+
+        return transactions.filter(t => {
+            const transactionDate = new Date(t.date);
+            return transactionDate >= todayStart && transactionDate <= todayEnd;
+        });
+    }, [transactions]);
 
     return (
         <div className="p-4 pt-2">
@@ -124,12 +134,19 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigate }) => {
   const [isHistoryVisible, setHistoryVisible] = useState(false);
 
   const dailyTotals = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
     let sales = 0;
     let expenses = 0;
 
     transactions
-      .filter(t => t.date.startsWith(today))
+      .filter(t => {
+        const transactionDate = new Date(t.date);
+        return transactionDate >= todayStart && transactionDate <= todayEnd;
+      })
       .forEach(t => {
         if (t.type === 'sale') {
           sales += t.amount;
