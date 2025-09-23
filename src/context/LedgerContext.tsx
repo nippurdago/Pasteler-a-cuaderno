@@ -103,12 +103,19 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const addSale = async (items: SaleItem[], total: number, date?: Date) => {
     if (!user) return;
+    // Preserve the selected day but stamp current time to avoid 00:00 times
+    const saveDate = (() => {
+      const base = new Date(date || new Date());
+      const now = new Date();
+      base.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+      return base;
+    })();
     const newSale = {
       type: 'sale',
       amount: total,
       items: items.filter(item => item.quantity > 0),
       user_id: user.id,
-      date: (date || new Date()).toISOString(),
+      date: saveDate.toISOString(),
     };
     const { data, error } = await supabase.from('transactions').insert(newSale).select();
     if (error) {
@@ -122,13 +129,20 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const addExpense = async (amount: number, category: ExpenseCategory, description?: string, date?: Date) => {
     if (!user) return;
+    // Preserve the selected day but stamp current time to avoid 00:00 times
+    const saveDate = (() => {
+      const base = new Date(date || new Date());
+      const now = new Date();
+      base.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+      return base;
+    })();
     const newExpense = {
       type: 'expense',
       amount,
       category,
       description,
       user_id: user.id,
-      date: (date || new Date()).toISOString(),
+      date: saveDate.toISOString(),
     };
     const { data, error } = await supabase.from('transactions').insert(newExpense).select();
     if (error) {
