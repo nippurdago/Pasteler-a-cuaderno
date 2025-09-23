@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import type { View, SaleItem } from '../types';
+import type { View, SaleItem, Transaction } from '../types';
 import { useLedger } from '../context/LedgerContext';
 import { ArrowLeftIcon } from '../components/Icons';
 

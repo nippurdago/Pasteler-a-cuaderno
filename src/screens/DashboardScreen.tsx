@@ -191,7 +191,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose, onEdit, currentDat
 interface DashboardScreenProps {
   navigate: (view: View, transaction?: Transaction, date?: Date) => void;
   selectedDate: Date;
-  setSelectedDate: (date: Date) => void;
+  setSelectedDate: React.Dispatch<React.SetStateAction<Date>>;
 }
 
 const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigate, selectedDate, setSelectedDate }) => {
@@ -200,7 +200,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigate, selectedDat
   const [isHistoryVisible, setHistoryVisible] = useState(false);
 
   const handlePrevDay = () => {
-    setSelectedDate(prevDate => {
+    setSelectedDate((prevDate: Date) => {
       const newDate = new Date(prevDate);
       newDate.setDate(newDate.getDate() - 1);
       return newDate;
@@ -208,7 +208,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigate, selectedDat
   };
 
   const handleNextDay = () => {
-    setSelectedDate(prevDate => {
+    setSelectedDate((prevDate: Date) => {
       const newDate = new Date(prevDate);
       newDate.setDate(newDate.getDate() + 1);
       return newDate;
