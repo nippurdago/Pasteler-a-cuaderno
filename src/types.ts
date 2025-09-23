@@ -1,4 +1,4 @@
-export type View = 'dashboard' | 'addSale' | 'addExpense' | 'products' | 'summary' | 'expenseDetail' | 'productCategories' | 'incomeDetail';
+export type View = 'dashboard' | 'addSale' | 'addExpense' | 'products' | 'summary' | 'expenseDetail' | 'productCategories' | 'incomeDetail' | 'editExpense' | 'editSale';
 
 export interface ProductCategory {
   id: string;

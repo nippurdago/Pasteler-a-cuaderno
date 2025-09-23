@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import type { View, SaleItem } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import type { View, SaleItem, Transaction } from '../types';
 import { useLedger } from '../context/LedgerContext';
 import { ArrowLeftIcon } from '../components/Icons';
 
@@ -16,19 +16,30 @@ const QuantityControl: React.FC<QuantityControlProps> = ({ quantity, onIncrease,
     </div>
 );
 
-interface AddSaleScreenProps {
+interface EditSaleScreenProps {
   navigate: (view: View, transaction?: Transaction, date?: Date) => void;
+  transaction: Transaction;
   selectedDate: Date;
 }
 
-const AddSaleScreen: React.FC<AddSaleScreenProps> = ({ navigate, selectedDate }) => {
-  const { products, addSale } = useLedger();
+const EditSaleScreen: React.FC<EditSaleScreenProps> = ({ navigate, transaction, selectedDate }) => {
+  const { products, updateTransaction } = useLedger();
   const visibleProducts = useMemo(() => 
     products.filter(p => p.isVisible).sort((a, b) => a.sortOrder - b.sortOrder).slice(0, 10),
     [products]
   );
   
   const [saleItems, setSaleItems] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (transaction && transaction.items) {
+      const initialItems: Record<string, number> = {};
+      transaction.items.forEach(item => {
+        initialItems[item.productId] = item.quantity;
+      });
+      setSaleItems(initialItems);
+    }
+  }, [transaction]);
 
   const handleQuantityChange = (productId: string, delta: number) => {
     setSaleItems(prev => {
@@ -47,20 +58,25 @@ const AddSaleScreen: React.FC<AddSaleScreenProps> = ({ navigate, selectedDate })
 
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleSaveSale = async () => {
+  const handleUpdateSale = async () => {
     if (total === 0 || isSaving) return;
 
     setIsSaving(true);
-    const itemsForTransaction: SaleItem[] = visibleProducts.map(p => ({
-        productId: p.id,
-        productName: p.name,
-        quantity: saleItems[p.id] || 0,
-        unitPrice: p.price
-    })).filter(item => item.quantity > 0);
+    try {
+      const itemsForTransaction: SaleItem[] = visibleProducts.map(p => ({
+          productId: p.id,
+          productName: p.name,
+          quantity: saleItems[p.id] || 0,
+          unitPrice: p.price
+      })).filter(item => item.quantity > 0);
 
-    await addSale(itemsForTransaction, total, selectedDate);
-    setIsSaving(false);
-    navigate('dashboard', undefined, selectedDate);
+      await updateTransaction(transaction.id, { items: itemsForTransaction, amount: total });
+      navigate('dashboard', undefined, selectedDate);
+    } catch (error) {
+      console.error('Error updating sale:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -69,7 +85,7 @@ const AddSaleScreen: React.FC<AddSaleScreenProps> = ({ navigate, selectedDate })
             <button onClick={() => navigate('dashboard', undefined, selectedDate)} className="p-2 -ml-2">
                 <ArrowLeftIcon className="w-6 h-6" />
             </button>
-            <h1 className="font-heading text-xl font-medium">Anotar Venta</h1>
+            <h1 className="font-heading text-xl font-medium">Editar Venta</h1>
         </header>
 
         <div className="p-4 space-y-3 pb-28">
@@ -102,16 +118,16 @@ const AddSaleScreen: React.FC<AddSaleScreenProps> = ({ navigate, selectedDate })
                 <span className="font-mono text-2xl font-bold">S/ {total.toFixed(2)}</span>
             </div>
             <button
-                onClick={handleSaveSale}
-                disabled={total === 0}
+                onClick={handleUpdateSale}
+                disabled={total === 0 || isSaving}
                 className="w-full bg-income text-white font-bold py-4 rounded-lg shadow-md disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                 style={{ minHeight: '48px' }}
             >
-                Guardar Venta
+                {isSaving ? 'Guardando...' : 'Actualizar Venta'}
             </button>
         </footer>
     </div>
   );
 };
 
-export default AddSaleScreen;
+export default EditSaleScreen;

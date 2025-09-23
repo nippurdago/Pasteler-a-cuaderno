@@ -1,36 +1,95 @@
 import React, { useState, useMemo } from 'react';
-import type { View } from '../types';
+import type { View, Transaction } from '../types';
 import { useLedger } from '../context/LedgerContext';
 import { useAuth } from '../context/AuthContext';
-import { PlusIcon, CurrencyIcon, CartIcon, ChevronDownIcon, TrashIcon, CupcakeIcon, ChevronUpIcon, LogOutIcon } from '../components/Icons';
+import { PlusIcon, CurrencyIcon, CartIcon, ChevronDownIcon, TrashIcon, CupcakeIcon, ChevronUpIcon, LogOutIcon, PencilIcon, ChevronLeftIcon, ChevronRightIcon } from '../components/Icons';
 import StatCard from '../components/StatCard';
 
 // Header Component
 interface HeaderProps {
   onProductsClick: () => void;
   onLogoutClick: () => void;
+  currentDate: Date;
+  onPrevDay: () => void;
+  onNextDay: () => void;
+  onDateChange: (date: Date) => void;
+  onTodayClick: () => void;
 }
-const Header: React.FC<HeaderProps> = ({ onProductsClick, onLogoutClick }) => {
-  const date = new Date().toLocaleDateString('es-ES', {
+const Header: React.FC<HeaderProps> = ({ onProductsClick, onLogoutClick, currentDate, onPrevDay, onNextDay, onDateChange, onTodayClick }) => {
+  const date = currentDate.toLocaleDateString('es-ES', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   });
 
+  // Format date for input (YYYY-MM-DD) in local time to avoid UTC shift
+  const inputDate = (() => {
+    const year = currentDate.getFullYear();
+    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const day = String(currentDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  })();
+
+  const handleDateInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Parse as local date (YYYY-MM-DD) to avoid timezone issues
+    const [y, m, d] = e.target.value.split('-').map(Number);
+    const newDate = new Date(y, (m || 1) - 1, d || 1);
+    onDateChange(newDate);
+  };
+
+  const isToday = () => {
+    const today = new Date();
+    return currentDate.toDateString() === today.toDateString();
+  };
+
   return (
-    <header className="sticky top-0 bg-background/80 backdrop-blur-sm z-10 p-4 flex justify-between items-center border-b border-accent/20">
-      <div>
+    <header className="sticky top-0 bg-background/80 backdrop-blur-sm z-10 p-4 border-b border-accent/20">
+      <div className="flex justify-between items-center mb-3">
         <h1 className="font-heading text-xl font-medium capitalize">Mi Pastelería</h1>
-        <p className="text-sm text-text-main/70">{date}</p>
+        <div className="flex items-center space-x-2">
+          <button onClick={onProductsClick} className="p-2 rounded-full hover:bg-accent/20 transition-colors" aria-label="Gestionar productos">
+            <CupcakeIcon className="w-6 h-6 text-accent" />
+          </button>
+          <button onClick={onLogoutClick} className="p-2 rounded-full hover:bg-accent/20 transition-colors" aria-label="Cerrar sesión">
+              <LogOutIcon className="w-6 h-6 text-accent" />
+          </button>
+        </div>
       </div>
-      <div className="flex items-center space-x-2">
-        <button onClick={onProductsClick} className="p-2 rounded-full hover:bg-accent/20 transition-colors" aria-label="Gestionar productos">
-          <CupcakeIcon className="w-6 h-6 text-accent" />
-        </button>
-        <button onClick={onLogoutClick} className="p-2 rounded-full hover:bg-accent/20 transition-colors" aria-label="Cerrar sesión">
-            <LogOutIcon className="w-6 h-6 text-accent" />
-        </button>
+      
+      {/* Date Selection */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <button onClick={onPrevDay} className="p-1 rounded-full hover:bg-accent/20 transition-colors">
+              <ChevronLeftIcon className="w-5 h-5 text-accent" />
+            </button>
+            <p className="text-sm text-text-main/70 min-w-0 flex-1 text-center">{date}</p>
+            <button onClick={onNextDay} className="p-1 rounded-full hover:bg-accent/20 transition-colors">
+              <ChevronRightIcon className="w-5 h-5 text-accent" />
+            </button>
+          </div>
+          {!isToday() && (
+            <button 
+              onClick={onTodayClick} 
+              className="ml-2 px-3 py-1 text-xs bg-accent/20 text-accent rounded-full hover:bg-accent/30 transition-colors"
+            >
+              Hoy
+            </button>
+          )}
+        </div>
+        
+        {/* Date Input */}
+        <div className="flex items-center space-x-2">
+          <label htmlFor="datePicker" className="text-xs text-text-main/60 whitespace-nowrap">Seleccionar fecha:</label>
+          <input 
+            type="date" 
+            id="datePicker"
+            value={inputDate}
+            onChange={handleDateInputChange}
+            className="flex-1 text-xs p-2 border border-accent/30 rounded-md bg-white/60 focus:ring-2 focus:ring-accent/50 focus:border-accent transition-colors"
+          />
+        </div>
       </div>
     </header>
   );
@@ -73,33 +132,35 @@ const FloatingActionButton: React.FC<FABProps> = ({ onAddSale, onAddExpense }) =
 // History Panel
 interface HistoryPanelProps {
   onClose: () => void;
+  onEdit: (transaction: Transaction) => void;
+  currentDate: Date;
 }
-const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
+const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose, onEdit, currentDate }) => {
     const { transactions, deleteTransaction } = useLedger();
     
-    const todaysTransactions = useMemo(() => {
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        const todayEnd = new Date();
-        todayEnd.setHours(23, 59, 59, 999);
+    const filteredTransactions = useMemo(() => {
+        const dayStart = new Date(currentDate);
+        dayStart.setHours(0, 0, 0, 0);
+        const dayEnd = new Date(currentDate);
+        dayEnd.setHours(23, 59, 59, 999);
 
         return transactions.filter(t => {
             const transactionDate = new Date(t.date);
-            return transactionDate >= todayStart && transactionDate <= todayEnd;
+            return transactionDate >= dayStart && transactionDate <= dayEnd;
         });
-    }, [transactions]);
+    }, [transactions, currentDate]);
 
     return (
         <div className="p-4 pt-2">
             <button onClick={onClose} className="w-full flex justify-center items-center text-text-main/60 py-2" aria-label="Cerrar historial">
                 <ChevronUpIcon className="w-6 h-6" />
             </button>
-            <h2 className="font-heading text-lg text-center mb-4">Registros de Hoy</h2>
+            <h2 className="font-heading text-lg text-center mb-4">Historial del Día</h2>
             <div className="space-y-3">
-                {todaysTransactions.length === 0 ? (
-                    <p className="text-center text-text-main/60">No hay registros para hoy.</p>
+                {filteredTransactions.length === 0 ? (
+                    <p className="text-center text-text-main/60">No hay registros para este día.</p>
                 ) : (
-                    todaysTransactions.map(t => (
+                    filteredTransactions.map(t => (
                         <div key={t.id} className="bg-white/50 p-3 rounded-lg flex items-center justify-between shadow-sm">
                             <div className="flex items-center space-x-3">
                                 <div className={`w-2 h-10 rounded-full ${t.type === 'sale' ? 'bg-income' : 'bg-expense'}`}></div>
@@ -112,6 +173,9 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
                                 <p className={`font-mono font-bold ${t.type === 'sale' ? 'text-income' : 'text-expense'}`}>
                                     {t.type === 'sale' ? '+' : '-'}S/ {t.amount.toFixed(2)}
                                 </p>
+                                <button onClick={() => onEdit(t)} className="text-text-main/50 hover:text-blue-500" aria-label={`Editar transacción ${t.id}`}>
+                                    <PencilIcon className="w-5 h-5" />
+                                </button>
                                 <button onClick={async () => await deleteTransaction(t.id)} className="text-text-main/50 hover:text-red-500" aria-label={`Eliminar transacción ${t.id}`}>
                                     <TrashIcon className="w-5 h-5" />
                                 </button>
@@ -125,19 +189,50 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose }) => {
 };
 
 interface DashboardScreenProps {
-  navigate: (view: View) => void;
+  navigate: (view: View, transaction?: Transaction, date?: Date) => void;
+  selectedDate: Date;
+  setSelectedDate: (date: Date) => void;
 }
 
-const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigate }) => {
+const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigate, selectedDate, setSelectedDate }) => {
   const { transactions } = useLedger();
   const { signOut } = useAuth();
   const [isHistoryVisible, setHistoryVisible] = useState(false);
 
+  const handlePrevDay = () => {
+    setSelectedDate(prevDate => {
+      const newDate = new Date(prevDate);
+      newDate.setDate(newDate.getDate() - 1);
+      return newDate;
+    });
+  };
+
+  const handleNextDay = () => {
+    setSelectedDate(prevDate => {
+      const newDate = new Date(prevDate);
+      newDate.setDate(newDate.getDate() + 1);
+      return newDate;
+    });
+  };
+
+  const handleDateChange = (date: Date) => {
+    setSelectedDate(date);
+  };
+
+  const handleTodayClick = () => {
+    setSelectedDate(new Date());
+  };
+
+  const handleEdit = (transaction: Transaction) => {
+    const view = transaction.type === 'sale' ? 'editSale' : 'editExpense';
+    navigate(view, transaction, selectedDate);
+  };
+
   const dailyTotals = useMemo(() => {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
+    const dayStart = new Date(selectedDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(selectedDate);
+    dayEnd.setHours(23, 59, 59, 999);
 
     let sales = 0;
     let expenses = 0;
@@ -145,7 +240,7 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigate }) => {
     transactions
       .filter(t => {
         const transactionDate = new Date(t.date);
-        return transactionDate >= todayStart && transactionDate <= todayEnd;
+        return transactionDate >= dayStart && transactionDate <= dayEnd;
       })
       .forEach(t => {
         if (t.type === 'sale') {
@@ -156,34 +251,42 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ navigate }) => {
       });
     
     return { sales, expenses, balance: sales - expenses };
-  }, [transactions]);
+  }, [transactions, selectedDate]);
   
   const balanceColor = dailyTotals.balance >= 0 ? 'bg-background' : 'bg-expense/20';
 
   return (
     <div className="flex flex-col h-full">
-      <Header onProductsClick={() => navigate('products')} onLogoutClick={signOut} />
+      <Header 
+        onProductsClick={() => navigate('products')} 
+        onLogoutClick={signOut} 
+        currentDate={selectedDate}
+        onPrevDay={handlePrevDay}
+        onNextDay={handleNextDay}
+        onDateChange={handleDateChange}
+        onTodayClick={handleTodayClick}
+      />
       
       <div className="p-4 space-y-4 flex-grow">
-        <StatCard title="Vendí Hoy" amount={dailyTotals.sales} colorClass="bg-income/20" />
-        <StatCard title="Gasté Hoy" amount={dailyTotals.expenses} colorClass="bg-expense/20" />
-        <StatCard title="Balance" amount={dailyTotals.balance} colorClass={balanceColor} />
+        <StatCard title="Ventas del Día" amount={dailyTotals.sales} colorClass="bg-income/20" />
+        <StatCard title="Gastos del Día" amount={dailyTotals.expenses} colorClass="bg-expense/20" />
+        <StatCard title="Balance del Día" amount={dailyTotals.balance} colorClass={balanceColor} />
       </div>
 
       {!isHistoryVisible && (
         <div className="w-full flex justify-center py-2">
             <button onClick={() => setHistoryVisible(true)} className="flex flex-col items-center text-text-main/60 animate-bounce" aria-label="Abrir historial">
-                <span>Historial de Hoy</span>
+                <span>Historial del Día</span>
                 <ChevronDownIcon className="w-6 h-6" />
             </button>
         </div>
       )}
       
-      {isHistoryVisible && <HistoryPanel onClose={() => setHistoryVisible(false)} />}
+      {isHistoryVisible && <HistoryPanel onClose={() => setHistoryVisible(false)} onEdit={handleEdit} currentDate={selectedDate} />}
       
       <FloatingActionButton 
-        onAddSale={() => navigate('addSale')}
-        onAddExpense={() => navigate('addExpense')}
+        onAddSale={() => navigate('addSale', undefined, selectedDate)}
+        onAddExpense={() => navigate('addExpense', undefined, selectedDate)}
       />
     </div>
   );

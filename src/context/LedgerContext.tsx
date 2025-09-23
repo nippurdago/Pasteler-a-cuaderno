@@ -7,9 +7,10 @@ interface LedgerContextType {
   products: Product[];
   productCategories: ProductCategory[];
   transactions: Transaction[];
-  addSale: (items: SaleItem[], total: number) => Promise<void>;
-  addExpense: (amount: number, category: ExpenseCategory, description?: string) => Promise<void>;
+  addSale: (items: SaleItem[], total: number, date?: Date) => Promise<void>;
+  addExpense: (amount: number, category: ExpenseCategory, description?: string, date?: Date) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
+  updateTransaction: (id: string, updates: Partial<Transaction>) => Promise<void>;
   updateProducts: (products: Product[]) => Promise<void>;
   addProduct: (product: Omit<Product, 'id' | 'category_id'> & { category_id?: string }) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
@@ -53,9 +54,16 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [loading, setLoading] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [period, setPeriod] = useState(() => {
+    const formatLocalDate = (date: Date) => {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    };
     const today = new Date();
-    const startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
-    const endDate = today.toISOString().split('T')[0];
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const startDate = formatLocalDate(startOfMonth);
+    const endDate = formatLocalDate(today);
     return { startDate, endDate };
   });
 
@@ -70,7 +78,7 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       const [productsRes, transactionsRes, categoriesRes] = await Promise.all([
         supabase.from('products').select('*').eq('user_id', user.id),
         supabase.from('transactions').select('*').eq('user_id', user.id).order('date', { ascending: false }),
-        supabase.from('product_categories').select('*').eq('user_id', user.id),
+        supabase.from('product_categories').select('*').eq('user_id', user.id)
       ]);
 
       if (productsRes.error) throw productsRes.error;
@@ -93,14 +101,14 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     fetchInitialData();
   }, [fetchInitialData]);
 
-  const addSale = async (items: SaleItem[], total: number) => {
+  const addSale = async (items: SaleItem[], total: number, date?: Date) => {
     if (!user) return;
     const newSale = {
       type: 'sale',
       amount: total,
       items: items.filter(item => item.quantity > 0),
       user_id: user.id,
-      date: new Date().toISOString(),
+      date: (date || new Date()).toISOString(),
     };
     const { data, error } = await supabase.from('transactions').insert(newSale).select();
     if (error) {
@@ -112,7 +120,7 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   };
 
-  const addExpense = async (amount: number, category: ExpenseCategory, description?: string) => {
+  const addExpense = async (amount: number, category: ExpenseCategory, description?: string, date?: Date) => {
     if (!user) return;
     const newExpense = {
       type: 'expense',
@@ -120,7 +128,7 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       category,
       description,
       user_id: user.id,
-      date: new Date().toISOString(),
+      date: (date || new Date()).toISOString(),
     };
     const { data, error } = await supabase.from('transactions').insert(newExpense).select();
     if (error) {
@@ -140,6 +148,38 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     } else {
       setTransactions(prev => prev.filter(t => t.id !== id));
       showToast('Registro eliminado');
+    }
+  };
+
+  const updateTransaction = async (id: string, updates: Partial<Transaction>) => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .update(updates)
+        .match({ id, user_id: user.id })
+        .select();
+
+      if (error) {
+        console.error('Error updating transaction:', error.message);
+        showToast('Error al actualizar');
+        return;
+      }
+
+      if (data && data.length > 0) {
+        setTransactions(prev => prev.map(t => t.id === id ? data[0] : t));
+        showToast('Registro actualizado');
+      } else {
+        // Fallback to optimistic update
+        setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...updates } as Transaction : t));
+        showToast('Registro actualizado');
+      }
+    } catch (error: any) {
+      console.error('Error updating transaction:', error.message);
+      // Fallback to optimistic update
+      setTransactions(prev => prev.map(t => t.id === id ? { ...t, ...updates } as Transaction : t));
+      showToast('Registro actualizado (actualización local)');
     }
   };
 
@@ -227,6 +267,7 @@ export const LedgerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     addSale,
     addExpense,
     deleteTransaction,
+    updateTransaction,
     updateProducts,
     addProduct,
     deleteProduct,

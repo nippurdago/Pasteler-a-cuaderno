@@ -78,7 +78,7 @@ const LoginScreen: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-4 bg-primary text-white font-bold py-4 rounded-lg shadow-md disabled:bg-primary/50 disabled:cursor-wait transition-colors flex justify-center items-center"
+              className="w-full mt-4 bg-accent text-white font-bold py-4 rounded-lg shadow-md hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent/50 disabled:bg-accent/50 disabled:cursor-wait transition-colors flex justify-center items-center"
               style={{ minHeight: '48px' }}
             >
               {loading ? (

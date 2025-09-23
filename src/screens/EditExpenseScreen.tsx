@@ -1,31 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { View, ExpenseCategory, Transaction } from '../types';
 import { useLedger } from '../context/LedgerContext';
 import { EXPENSE_CATEGORIES } from '../constants';
 import { ArrowLeftIcon } from '../components/Icons';
 
-interface AddExpenseScreenProps {
+interface EditExpenseScreenProps {
   navigate: (view: View, transaction?: Transaction, date?: Date) => void;
+  transaction: Transaction;
   selectedDate: Date;
 }
 
-const AddExpenseScreen: React.FC<AddExpenseScreenProps> = ({ navigate, selectedDate }) => {
-  const { addExpense } = useLedger();
+const EditExpenseScreen: React.FC<EditExpenseScreenProps> = ({ navigate, transaction, selectedDate }) => {
+  const { updateTransaction } = useLedger();
   const [selectedCategory, setSelectedCategory] = useState<ExpenseCategory | null>(null);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (transaction) {
+      setSelectedCategory(transaction.category || null);
+      setAmount(transaction.amount.toString());
+      setDescription(transaction.description || '');
+    }
+  }, [transaction]);
   
-  const handleSaveExpense = async () => {
+  const handleUpdateExpense = async () => {
     const numericAmount = parseFloat(amount);
     if (!selectedCategory || isNaN(numericAmount) || numericAmount <= 0 || isSaving) {
       return;
     }
     setIsSaving(true);
-    await addExpense(numericAmount, selectedCategory, description, selectedDate);
-    setIsSaving(false);
-    navigate('dashboard', undefined, selectedDate);
+    try {
+      await updateTransaction(transaction.id, { 
+        amount: numericAmount, 
+        category: selectedCategory, 
+        description 
+      });
+      navigate('dashboard', undefined, selectedDate);
+    } catch (error) {
+      console.error('Error updating expense:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -34,7 +52,7 @@ const AddExpenseScreen: React.FC<AddExpenseScreenProps> = ({ navigate, selectedD
         <button onClick={() => navigate('dashboard', undefined, selectedDate)} className="p-2 -ml-2">
           <ArrowLeftIcon className="w-6 h-6" />
         </button>
-        <h1 className="font-heading text-xl font-medium">Anotar Gasto</h1>
+        <h1 className="font-heading text-xl font-medium">Editar Gasto</h1>
       </header>
       
       <div className="p-4 space-y-6 flex-grow">
@@ -94,16 +112,16 @@ const AddExpenseScreen: React.FC<AddExpenseScreenProps> = ({ navigate, selectedD
 
         <div className="p-4 mt-auto">
             <button
-                onClick={handleSaveExpense}
-                disabled={!selectedCategory || !amount || parseFloat(amount) <= 0}
+                onClick={handleUpdateExpense}
+                disabled={!selectedCategory || !amount || parseFloat(amount) <= 0 || isSaving}
                 className="w-full bg-expense text-white font-bold py-4 rounded-lg shadow-md disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                 style={{ minHeight: '48px' }}
             >
-                Guardar Gasto
+                {isSaving ? 'Guardando...' : 'Actualizar Gasto'}
             </button>
         </div>
     </div>
   );
 };
 
-export default AddExpenseScreen;
+export default EditExpenseScreen;

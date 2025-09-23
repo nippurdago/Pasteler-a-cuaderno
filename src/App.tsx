@@ -8,10 +8,12 @@ import ProductsScreen from './screens/ProductsScreen';
 import SummaryScreen from './screens/SummaryScreen';
 import LoginScreen from './screens/LoginScreen';
 import BottomNav from './components/BottomNav';
-import type { View } from './types';
+import type { View, Transaction } from './types';
 import ExpenseDetailScreen from './screens/ExpenseDetailScreen';
 import ProductCategoryScreen from './screens/ProductCategoryScreen';
 import IncomeDetailScreen from './screens/IncomeDetailScreen';
+import EditExpenseScreen from './screens/EditExpenseScreen';
+import EditSaleScreen from './screens/EditSaleScreen';
 
 const App: React.FC = () => (
   <AuthProvider>
@@ -41,8 +43,16 @@ const AppContent: React.FC = () => {
 
 const AuthenticatedApp: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('dashboard');
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
-  const navigate = useCallback((view: View) => {
+  const navigate = useCallback((view: View, transaction?: Transaction, date?: Date) => {
+    if (transaction) {
+      setEditingTransaction(transaction);
+    }
+    if (date) {
+      setSelectedDate(date);
+    }
     setCurrentView(view);
     window.scrollTo(0, 0);
   }, []);
@@ -50,9 +60,13 @@ const AuthenticatedApp: React.FC = () => {
   const renderView = () => {
     switch (currentView) {
       case 'addSale':
-        return <AddSaleScreen navigate={navigate} />;
+        return <AddSaleScreen navigate={navigate} selectedDate={selectedDate} />;
       case 'addExpense':
-        return <AddExpenseScreen navigate={navigate} />;
+        return <AddExpenseScreen navigate={navigate} selectedDate={selectedDate} />;
+      case 'editSale':
+        return <EditSaleScreen navigate={navigate} transaction={editingTransaction!} selectedDate={selectedDate} />;
+      case 'editExpense':
+        return <EditExpenseScreen navigate={navigate} transaction={editingTransaction!} selectedDate={selectedDate} />;
       case 'products':
         return <ProductsScreen navigate={navigate} />;
       case 'summary':
@@ -68,6 +82,8 @@ const AuthenticatedApp: React.FC = () => {
         return (
           <DashboardScreen
             navigate={navigate}
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
           />
         );
     }
