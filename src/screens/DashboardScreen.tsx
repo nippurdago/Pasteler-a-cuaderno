@@ -106,8 +106,8 @@ const FloatingActionButton: React.FC<FABProps> = ({ onAddSale, onAddExpense }) =
   const handleFabClick = () => setIsOpen(!isOpen);
 
   return (
-    <div className="fixed bottom-20 right-6 z-20">
-      <div className={`flex flex-col items-center space-y-3 transition-all duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 -translate-y-2 pointer-events-none'}`}>
+    <div className="fixed bottom-24 right-6 z-20 pointer-events-none">
+      <div className={`flex flex-col items-center space-y-3 transition-all duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 -translate-y-2'} pointer-events-auto`}>
         <button onClick={onAddSale} className="bg-white p-3 rounded-full shadow-lg flex items-center space-x-2 text-sm text-text-main hover:bg-gray-100 transition-colors">
             <span className="font-medium">Anotar Venta</span>
             <CurrencyIcon className="w-6 h-6 text-income" />
@@ -119,7 +119,7 @@ const FloatingActionButton: React.FC<FABProps> = ({ onAddSale, onAddExpense }) =
       </div>
       <button
         onClick={handleFabClick}
-        className="bg-income text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center mt-3 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-income/50"
+        className="bg-income text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center mt-3 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-income/50 pointer-events-auto"
         style={{ minHeight: '48px', minWidth: '48px' }}
         aria-expanded={isOpen}
       >
@@ -151,7 +151,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ onClose, onEdit, currentDat
     }, [transactions, currentDate]);
 
     return (
-        <div className="p-4 pt-2">
+        <div className="p-4 pt-2 pb-28">
             <button onClick={onClose} className="w-full flex justify-center items-center text-text-main/60 py-2" aria-label="Cerrar historial">
                 <ChevronUpIcon className="w-6 h-6" />
             </button>
